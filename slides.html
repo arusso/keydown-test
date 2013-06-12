@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>./</title>
+    <title>iptables and NRPE management</title>
     <meta charset='utf-8'>
     <meta content='width=1024, user-scalable=no' name='viewport'>
     <!-- deck.js's core css -->
@@ -26,26 +26,105 @@
     <section class='slide'>
       <div class='spacer top'></div>
       <div class='content'>
-        <h1>A Title Slide</h1>
+        <h2>Managing iptables and NRPE in Puppet</h2>
         
-        <h2>me@example.com</h2>
+        <h3>Aaron Russo <a href="&#109;&#x61;&#105;&#108;&#x74;&#x6f;&#58;&#x61;&#x72;&#117;&#x73;&#x73;&#111;&#64;&#x62;&#101;&#x72;&#107;&#101;&#x6c;&#101;&#x79;&#x2e;&#101;&#100;&#x75;">&#x61;&#x72;&#x75;&#x73;&#115;&#x6f;&#64;&#x62;&#x65;&#x72;&#107;&#101;&#x6c;&#101;&#121;&#46;&#x65;&#x64;&#117;</a></h3>
       </div>
       <div class='spacer bottom'></div>
     </section>
     <section class='slide'>
       <div class='spacer top'></div>
       <div class='content'>
-        <h1>Some sample code</h1>
+        <h2>Introduction</h2>
         
-        <p><textarea class='code' display='none' mode='ruby'>def method&#x000A;  puts "Hello, World"&#x000A;end</textarea>
+        <p>To really leverage Puppet, we need to work with objects within Puppet, and step
+        away from the copy-a-file mindset.</p>
+        
+        <p>To that end, I've created some puppet modules to manage iptables and nrpe rules,
+        taking care to keep the on-disk configuration to as similar as possible to how
+        we already do thing.</p>
+        
+        <p>This is their story.</p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='left slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h2>Outline</h2>
+        
+        <ol>
+        <li>iptables
+        
+        <ol>
+        <li>How are we handling them now?</li>
+        <li>How can we handle them better?</li>
+        <li>But wait, there's more...</li>
+        </ol>
+        </li>
+        <li>NRPE
+        
+        <ol>
+        <li>What are we doing now?</li>
+        <li>What are we fixing?</li>
+        </ol>
+        </li>
+        </ol>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='left slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h2>iptables / What are we doing now?</h2>
+        
+        <h3>Overview</h3>
+        
+        <ul>
+        <li>single base firewall class</li>
+        <li>firewall rulesets are in static files</li>
+        <li>each host needing additional rules requires a completely new file</li>
+        <li>ip6tables is supported, but doubles the number of files to edit</li>
+        </ul>
+        
+        
+        <h3>Stats</h3>
+        
+        <ul>
+        <li>Hosts: 76</li>
+        <li>Firewalls (IPv4 / IPv6): 55 / 5</li>
+        </ul>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h2>iptables / What are the issues, how do we fix them?</h2>
+        
+        <p>The main course of this presentation -- why exactly do we need this?</p>
+        
+        <h3>configuration sprawl/duplication of data</h3>
+        
+        <p> iptables rules are now defined types in puppet, so can be easily wrapped in
+         classes and reused.</p>
+        
+        <p>Example:
+        <textarea class='code' display='none' mode='ruby'># modules eu/manifests/firewall/web.pp&#x000A;class eu::firewall::web {&#x000A;  iptables::rule { 'eu::firewall::web - allow public web access':&#x000A;    comment          => 'eu::firewall::web - allow web access',&#x000A;    order            => 200,&#x000A;    protocol         => 'tcp',&#x000A;    destination_port => [ '80', '443' ]&#x000A;  }&#x000A;}&#x000A;&#x000A;# modules/app/manifess/supadupa.pp&#x000A;class app::supadupa {&#x000A;  include eu::firewall::base&#x000A;  if $::hostname =~ /web/ { include eu::firewall::web }&#x000A;}&#x000A;&#x000A;# modules/app/manifests/snafupa.pp&#x000A;class app::snafupa {&#x000A;  include eu::firewall::base&#x000A;  if $::hostname =~ /web/ { include eu::firewall::web }&#x000A;}&#x000A;&#x000A;# manifests/eu-snafupa-web-01.ist.berkeley.edu.pp&#x000A;node 'eu-snafupa-web-01.ist.berkeley.edu' {&#x000A;  include app::snafupa&#x000A;}&#x000A;&#x000A;# manifests/eu-supadupa-web-01.ist.berkeley.edu.pp&#x000A;node 'eu-supadupa-web-01.ist.berkeley.edu' {&#x000A;  include app::supadupa&#x000A;}</textarea>
     </p>
       </div>
       <div class='spacer bottom'></div>
     </section>
-    <section class='full-background slide test'>
+    <section class='slide'>
       <div class='spacer top'></div>
       <div class='content'>
-        <h1>With a Background Image</h1>
+        <h2>What problems are we addressing?</h2>
+        
+        <h3>minimize amount of time it takes to audit and make changes</h3>
+        
+        <p> with 55 rulesets, it would take all of us a good chunk of time auditing the
+         rules that are applied to those hosts.  if all of the rules are in puppet and
+         rulesets are reused, we only need to audit a handful of rulesets.</p>
       </div>
       <div class='spacer bottom'></div>
     </section>
