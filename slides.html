@@ -28,89 +28,41 @@
       <div class='content'>
         <h2>Managing iptables and NRPE in Puppet</h2>
         
-        <h3>Aaron Russo <a href="&#109;&#x61;&#105;&#108;&#x74;&#x6f;&#58;&#x61;&#x72;&#117;&#x73;&#x73;&#111;&#64;&#x62;&#101;&#x72;&#107;&#101;&#x6c;&#101;&#x79;&#x2e;&#101;&#100;&#x75;">&#x61;&#x72;&#x75;&#x73;&#115;&#x6f;&#64;&#x62;&#x65;&#x72;&#107;&#101;&#x6c;&#101;&#121;&#46;&#x65;&#x64;&#117;</a></h3>
+        <h3>Aaron Russo <a href="&#x6d;&#x61;&#x69;&#108;&#116;&#x6f;&#x3a;&#x61;&#114;&#117;&#x73;&#x73;&#x6f;&#64;&#x62;&#x65;&#x72;&#107;&#101;&#x6c;&#101;&#121;&#46;&#x65;&#100;&#x75;">&#x61;&#x72;&#117;&#x73;&#x73;&#x6f;&#x40;&#98;&#101;&#x72;&#x6b;&#x65;&#108;&#101;&#x79;&#46;&#x65;&#x64;&#117;</a></h3>
       </div>
       <div class='spacer bottom'></div>
     </section>
     <section class='slide'>
       <div class='spacer top'></div>
       <div class='content'>
-        <h2>Introduction</h2>
-        
-        <p>To really leverage Puppet, we need to work with objects within Puppet, and step
-        away from the copy-a-file mindset.</p>
-        
-        <p>To that end, I've created some puppet modules to manage iptables and nrpe rules,
-        taking care to keep the on-disk configuration to as similar as possible to how
-        we already do thing.</p>
-        
-        <p>This is their story.</p>
-      </div>
-      <div class='spacer bottom'></div>
-    </section>
-    <section class='left slide'>
-      <div class='spacer top'></div>
-      <div class='content'>
-        <h2>Outline</h2>
-        
-        <ol>
-        <li>iptables
-        
-        <ol>
-        <li>How are we handling them now?</li>
-        <li>How can we handle them better?</li>
-        <li>But wait, there's more...</li>
-        </ol>
-        </li>
-        <li>NRPE
-        
-        <ol>
-        <li>What are we doing now?</li>
-        <li>What are we fixing?</li>
-        </ol>
-        </li>
-        </ol>
-      </div>
-      <div class='spacer bottom'></div>
-    </section>
-    <section class='left slide'>
-      <div class='spacer top'></div>
-      <div class='content'>
-        <h2>iptables / What are we doing now?</h2>
-        
-        <h3>Overview</h3>
-        
-        <ul>
-        <li>single base firewall class</li>
-        <li>firewall rulesets are in static files</li>
-        <li>each host needing additional rules requires a completely new file</li>
-        <li>ip6tables is supported, but doubles the number of files to edit</li>
-        </ul>
-        
-        
-        <h3>Stats</h3>
-        
-        <ul>
-        <li>Hosts: 76</li>
-        <li>Firewalls (IPv4 / IPv6): 55 / 5</li>
-        </ul>
+        <p>CFEngine likes files, Puppet likes types</p>
       </div>
       <div class='spacer bottom'></div>
     </section>
     <section class='slide'>
       <div class='spacer top'></div>
       <div class='content'>
-        <h2>iptables / What are the issues, how do we fix them?</h2>
         
-        <p>The main course of this presentation -- why exactly do we need this?</p>
         
-        <h3>configuration sprawl/duplication of data</h3>
+        <p>The way we manage iptables and nrpe now fits the CFEngine model</p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
         
-        <p> iptables rules are now defined types in puppet, so can be easily wrapped in
-         classes and reused.</p>
         
-        <p>Example:
-        <textarea class='code' display='none' mode='ruby'># modules eu/manifests/firewall/web.pp&#x000A;class eu::firewall::web {&#x000A;  iptables::rule { 'eu::firewall::web - allow public web access':&#x000A;    comment          => 'eu::firewall::web - allow web access',&#x000A;    order            => 200,&#x000A;    protocol         => 'tcp',&#x000A;    destination_port => [ '80', '443' ]&#x000A;  }&#x000A;}&#x000A;&#x000A;# modules/app/manifess/supadupa.pp&#x000A;class app::supadupa {&#x000A;  include eu::firewall::base&#x000A;  if $::hostname =~ /web/ { include eu::firewall::web }&#x000A;}&#x000A;&#x000A;# modules/app/manifests/snafupa.pp&#x000A;class app::snafupa {&#x000A;  include eu::firewall::base&#x000A;  if $::hostname =~ /web/ { include eu::firewall::web }&#x000A;}&#x000A;&#x000A;# manifests/eu-snafupa-web-01.ist.berkeley.edu.pp&#x000A;node 'eu-snafupa-web-01.ist.berkeley.edu' {&#x000A;  include app::snafupa&#x000A;}&#x000A;&#x000A;# manifests/eu-supadupa-web-01.ist.berkeley.edu.pp&#x000A;node 'eu-supadupa-web-01.ist.berkeley.edu' {&#x000A;  include app::supadupa&#x000A;}</textarea>
+        <p>Here's how we define where we pickup iptables files:</p>
+        
+        
+        <p><textarea class='code' display='none' mode='ruby'># modules/sys_iptables_rhfw/manifests/init.pp&#x000A;... snip ...&#x000A;file { '/etc/sysconfig/iptables':&#x000A;  mode   => '0400',&#x000A;  owner  => 'root',&#x000A;  group  => 'root',&#x000A;  source => [ 'puppet:///host/etc/sysconfig/iptables',&#x000A;              "puppet:///modules/sys_iptables_rhfw/etc/sysconfig/iptables-$location",&#x000A;              'puppet:///modules/sys_iptables_rhfw/etc/sysconfig/iptables' ]&#x000A;}&#x000A;... snip ...</textarea>
+    </p>
+        
+        <p>And here's NRPE configurations</p>
+        
+        
+        <p><textarea class='code' display='none' mode='ruby'># modules/sys_nagios_std/manifests/init.pp&#x000A;... snip&#x000A;file { '/etc/nrpe.d/local.cfg':&#x000A;  owner => 'root',&#x000A;  group => 'root',&#x000A;  mode  => '0444',&#x000A;  source => [ 'puppet:///host/etc/nrpe.d/local.cfg',&#x000A;              'puppet:///modules/sys_nagios_std/etc/nrpe.d/local.cfg',&#x000A;            ]&#x000A;}&#x000A;... snip ...</textarea>
     </p>
       </div>
       <div class='spacer bottom'></div>
@@ -118,13 +70,152 @@
     <section class='slide'>
       <div class='spacer top'></div>
       <div class='content'>
-        <h2>What problems are we addressing?</h2>
         
-        <h3>minimize amount of time it takes to audit and make changes</h3>
         
-        <p> with 55 rulesets, it would take all of us a good chunk of time auditing the
-         rules that are applied to those hosts.  if all of the rules are in puppet and
-         rulesets are reused, we only need to audit a handful of rulesets.</p>
+        <p>"Hold up, what's the matter with that?"</p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <ol>
+        <li><p>It leads to a ton of duplicated configuration</p></p></li>
+        <li><p>We currently have 55 individual firewall rulesets for 76 hosts.</p></li>
+        <li><p>There's no common location for certain configuration items like in CFEngine.</p></li>
+        <li><p>This is a huge pain spot if we ever need to make no-trivial updates across the
+        board.</p></li>
+        <li><p>It's not <strong>immediately</strong> clear where iptables rules are located.  They can be
+        in one of more than 3 possible places.</p></li>
+        </ol>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        
+        
+        <p>"So, how do we fix this?"</p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <p>By using dedicated puppet <strong>types</strong> to declare <strong>resources</strong> that we can
+        group together within <strong>classes</strong> for reuse</p>
+        
+        <p>Let's see what that looks like.</p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h6>Here's a class with 3 resources we can reference as <code>eu::firewall::base</code></h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'># modules/eu/manifests/firewall/base.pp&#x000A;class eu::firewall::base {&#x000A;  iptables::rule { 'base-allow-lo-int':&#x000A;    comment            => 'allow lo traffic',&#x000A;    order              => 250,&#x000A;    incoming_interface => 'lo',&#x000A;  }&#x000A;&#x000A;  iptables::rule { 'ssh-192.168.0.0/24-admin-net':&#x000A;    comment          => 'allow ssh from admin network',&#x000A;    order            => 100,&#x000A;    protocol         => 'tcp',&#x000A;    destination_port => '22',&#x000A;  }&#x000A;&#x000A;  iptables::rule { 'related, established traffic':&#x000A;    comment          => 'allow related, established traffic',&#x000A;    order            => 050,&#x000A;    protocol         => 'tcp',&#x000A;    destination_port => '22',&#x000A;  }&#x000A;}</textarea>
+    </p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h6>Here's a class with a 1 resource we can reference as <code>eu::firewall::web</code></h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'># modules eu/manifests/firewall/web.pp&#x000A;class eu::firewall::web {&#x000A;  iptables::rule { 'eu::firewall::web - allow public web access':&#x000A;    comment          => 'eu::firewall::web - allow web access',&#x000A;    order            => 200,&#x000A;    protocol         => 'tcp',&#x000A;    destination_port => [ '80', '443' ]&#x000A;  }&#x000A;}</textarea>
+    </p>
+        
+        <h6>Here's a class with 2 included classes and 1 resource we can reference as <code>app::snafu</code></h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'># modules/app/manifests/snafu.pp&#x000A;class app::snafu {&#x000A;  include eu::firewall::base&#x000A;  include eu::firewall::web&#x000A;&#x000A;  iptables::rule { 'allow smtp incoming from admin networks':&#x000A;    comment          => 'ticket#12345 - allow ingress smtp',&#x000A;    protocol         => 'tcp',&#x000A;    destination_port => [ '25', '587' ],&#x000A;    order            =>'450,&#x000A;    network          => $eu::firewall::admin_networks,&#x000A;    source           => [ '2607::1/120', '10.0.1.0/24' ],&#x000A;  }&#x000A;}</textarea>
+    </p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h6>Finally, let's use our application class</h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'># manifests/snafu-prod-01.pp&#x000A;node 'snafu.example.com' {&#x000A;  ... snip ...&#x000A;&#x000A;  include app::snafu&#x000A;&#x000A;  ... snip ...&#x000A;}</textarea>
+    </p>
+        
+        <h6>Or we can just call the firewall class(es) directly.</h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'>node 'fubar.example.com' {&#x000A;  ... snip ...&#x000A;&#x000A;  include eu::firewall::base&#x000A;&#x000A;  ... snip ...&#x000A;}</textarea>
+    </p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h3>IPv6 Support</h3>
+        
+        <ul>
+        <li><p>It's all baked in -- you shouldn't need to do anything special to use it.</p></li>
+        <li><p>if you don't specify a source or destination ip, nor a protocol version, an
+        iptables AND ip6tables rule(s) will be generated.</p></li>
+        <li><p>if you specify only addresses within a particular protocol version, the rule
+        will only be created for that protocol version.</p></li>
+        <li><p>if you specify addresses from both protocol versions, the rule will generate
+        equivalent rules for both iptables and ip6tables with the appropriate addresses.</p></li>
+        </ul>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <p>"Wait, but what about NRPE?"</p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <p>NRPE is handled in a very similar fashion, using the <code>nrpe</code> class, and the
+        <code>nrpe::command</code> type.</p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h6>Here the class that sets up NRPE behind xinetd for us</h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'># modules/eu/manifests/nrpe.pp&#x000A;class eu::nrpe {&#x000A;  class { '::nrpe':&#x000A;    xinetd        => true,&#x000A;    allowed_hosts => $eu::firewall::nrpe_monitors,&#x000A;  }&#x000A;&#x000A;  $plugindir = '/usr/lib64/nagios/plugins'&#x000A;}</textarea>
+    </p>
+        
+        <h6>And here's a class that defines a few of our commands</h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'># modules/eu/manifests/nrpe/base.pp&#x000A;class eu::nrpe::base (&#x000A;  $users_warn = 8,&#x000A;  $users_crit = 12,&#x000A;  $load_warn = '15,10,5',&#x000A;  $load_crit = '30,25,20'&#x000A;) {&#x000A;  include eu::nrpe&#x000A;&#x000A;  nrpe::command { 'check_users':&#x000A;    command => "${plugindir}/check_users -w ${users_warn} -c ${users_crit}",&#x000A;  }&#x000A;&#x000A;  nrpe::command { 'check_load':&#x000A;    command => "${plugindir}/check_load -w ${load_warn} -c ${load_crit}",&#x000A;  }&#x000A;}</textarea>
+    </p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <h6>Now we'll apply this to a host along with a host-specific command</h6>
+        
+        <p><textarea class='code' display='none' mode='ruby'># manifests/snafu.example.com&#x000A;node 'snafu.example.com' {&#x000A;  ... snip ...&#x000A;&#x000A;  class { 'eu::nrpe::base':&#x000A;    users_warn => 99,&#x000A;    users_crit => 100,&#x000A;  }&#x000A;&#x000A;  nrpe::command { 'check_snafu':&#x000A;    command => "/usr/local/bin/check_snafu -w 10 -c 15',&#x000A;  }&#x000A;&#x000A;  ... snip ...&#x000A;}</textarea>
+    </p>
+      </div>
+      <div class='spacer bottom'></div>
+    </section>
+    <section class='slide'>
+      <div class='spacer top'></div>
+      <div class='content'>
+        <p>Files are generated under /etc/nrpe.d/<command name></p>
+        
+        <p>From our previous examples:</p>
+        
+        <p><textarea class='code' display='none' mode='text'># /etc/nrpe.d/check_snafu.cfg&#x000A;command[check_snafu]=/usr/local/bin/check_snafu -w 10 -c 15&#x000A;&#x000A;# /etc/nrpe.d/check_users.cfg&#x000A;command[check_users]=/usr/lib64/nagios/plugins/check_users -w 99 -c 100&#x000A;&#x000A;# /etc/nrped/check_load.cfg&#x000A;command[check_load]=/usr/lib64/nagios/plugins/check_load -w 15,10,5 -c 30,25,20</textarea>
+    </p>
       </div>
       <div class='spacer bottom'></div>
     </section>
